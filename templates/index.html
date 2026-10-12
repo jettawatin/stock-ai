@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stock AI | วิเคราะห์หุ้น</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <div class="brand">STOCK<span>AI</span></div>
+        <div class="tag">MACHINE LEARNING</div>
+    </header>
+
+    <section class="hero">
+        <p class="eyebrow">SMART MARKET ANALYSIS</p>
+        <h1>วิเคราะห์หุ้นด้วย AI</h1>
+        <p class="subtitle">
+            วิเคราะห์ข้อมูลย้อนหลัง พร้อมอธิบายสัญญาณที่สนับสนุน
+            แนวโน้มขึ้นและความเสี่ยงขาลง
+        </p>
+    </section>
+
+    <form method="POST" class="search-form">
+        <label for="ticker">เลือกหุ้นที่ต้องการวิเคราะห์</label>
+        <select id="ticker" name="ticker">
+            {% for ticker, name in stocks.items() %}
+            <option value="{{ ticker }}"
+                {% if selected == ticker %}selected{% endif %}>
+                {{ ticker }} — {{ name }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit">วิเคราะห์หุ้น →</button>
+    </form>
+
+    {% if error %}
+    <div class="error">
+        <strong>วิเคราะห์ไม่สำเร็จ</strong>
+        <p>{{ error }}</p>
+    </div>
+    {% endif %}
+
+    {% if result %}
+
+    <section class="summary-grid">
+        <div class="card">
+            <p class="muted">ราคาปิดล่าสุดที่ได้รับ</p>
+            <h2>{{ result.name }}</h2>
+            <div class="ticker">{{ result.ticker }}</div>
+            <div class="price">
+                ${{ "%.2f"|format(result.price) }}
+            </div>
+            <p class="muted">วันที่ข้อมูล {{ result.date }} · USD</p>
+        </div>
+
+        <div class="card prediction-card">
+            <p class="muted">โมเดลประเมินแนวโน้มวันถัดไป</p>
+            {% if result.prediction == "UP" %}
+            <div class="prediction up">↗ แนวโน้มขึ้น</div>
+            {% else %}
+            <div class="prediction down">↘ แนวโน้มลง</div>
+            {% endif %}
+
+            <div class="probability-row">
+                <span>โมเดลประเมินฝั่งขึ้น</span>
+                <strong>{{ "%.1f"|format(result.up_probability) }}%</strong>
+            </div>
+            <div class="bar">
+                <span class="up-bar"
+                    style="width: {{ result.up_probability }}%"></span>
+            </div>
+
+            <div class="probability-row">
+                <span>โมเดลประเมินฝั่งลง</span>
+                <strong>{{ "%.1f"|format(result.down_probability) }}%</strong>
+            </div>
+            <div class="bar">
+                <span class="down-bar"
+                    style="width: {{ result.down_probability }}%"></span>
+            </div>
+            <p class="small">
+                เป็นค่าความน่าจะเป็นจากโมเดล ไม่ใช่โอกาสจริงที่รับประกันได้
+            </p>
+        </div>
+    </section>
+
+    <section class="card section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">PRICE HISTORY</p>
+                <h2>กราฟราคาหุ้นย้อนหลัง</h2>
+            </div>
+            <p class="muted">90 วันข้อมูลล่าสุด</p>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="priceChart"></canvas>
+        </div>
+    </section>
+
+    <section class="reason-grid">
+        <div class="card">
+            <h2 class="green">↗ ปัจจัยสนับสนุนการขึ้น</h2>
+            <p class="muted">สัญญาณทางเทคนิคด้านบวก</p>
+            <ul>
+                {% for reason in result.up_reasons %}
+                <li>{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2 class="red">↘ ปัจจัยเสี่ยงด้านขาลง</h2>
+            <p class="muted">สัญญาณทางเทคนิคด้านลบ</p>
+            <ul>
+                {% for reason in result.down_reasons %}
+                <li>{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+
+    <section class="card section">
+        <p class="eyebrow">TECHNICAL INDICATORS</p>
+        <h2>ตัวชี้วัดสำคัญ</h2>
+
+        <div class="metrics-grid">
+            <div class="metric">
+                <span>RSI (14 วัน)</span>
+                <strong>{{ "%.1f"|format(result.rsi) }}</strong>
+                <small>
+                    {% if result.rsi >= 70 %}
+                    โซนซื้อมาก
+                    {% elif result.rsi <= 30 %}
+                    โซนขายมาก
+                    {% else %}
+                    โซนกลาง
+                    {% endif %}
+                </small>
+            </div>
+
+            <div class="metric">
+                <span>SMA20</span>
+                <strong>${{ "%.2f"|format(result.sma20) }}</strong>
+                <small>ค่าเฉลี่ย 20 วัน</small>
+            </div>
+
+            <div class="metric">
+                <span>SMA50</span>
+                <strong>${{ "%.2f"|format(result.sma50) }}</strong>
+                <small>ค่าเฉลี่ย 50 วัน</small>
+            </div>
+
+            <div class="metric">
+                <span>ราคาหุ้น 5 วันย้อนหลัง</span>
+                <strong class="{% if result.return5d >= 0 %}green{% else %}red{% endif %}">
+                    {{ "%+.2f"|format(result.return5d) }}%
+                </strong>
+                <small>การเปลี่ยนแปลงย้อนหลัง</small>
+            </div>
+
+            <div class="metric">
+                <span>ความผันผวน</span>
+                <strong>{{ "%.2f"|format(result.volatility) }}%</strong>
+                <small>ส่วนเบี่ยงเบนมาตรฐานรายวัน</small>
+            </div>
+        </div>
+    </section>
+
+    <section class="card section">
+        <p class="eyebrow">MODEL EXPLAINABILITY</p>
+        <h2>ปัจจัยที่โมเดลใช้มากที่สุด</h2>
+        <p class="muted">
+            Feature importance แสดงความสำคัญต่อการแบ่งข้อมูลของโมเดล
+            ไม่ได้แสดงว่าปัจจัยนั้นทำให้ราคาขึ้นหรือลงโดยตรง
+        </p>
+
+        {% for item in result.importance %}
+        <div class="importance">
+            <div class="importance-label">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}%</strong>
+            </div>
+            <div class="bar">
+                <span class="importance-bar"
+                    style="width: {{ item.value }}%"></span>
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+
+    <section class="card section">
+        <p class="eyebrow">HISTORICAL TEST</p>
+        <h2>ผลทดสอบโมเดล</h2>
+
+        <div class="metrics-grid two">
+            <div class="metric">
+                <span>Accuracy</span>
+                <strong>{{ "%.2f"|format(result.accuracy) }}%</strong>
+                <small>สัดส่วนการทำนายถูกในชุดทดสอบ</small>
+            </div>
+            <div class="metric">
+                <span>Balanced accuracy</span>
+                <strong>{{ "%.2f"|format(result.balanced_accuracy) }}%</strong>
+                <small>คำนึงถึงผลของทั้งสองคลาส</small>
+            </div>
+        </div>
+
+        <p class="muted">
+            ผลทดสอบย้อนหลังอาจไม่สะท้อนผลในอนาคต และยังไม่รวมค่าธรรมเนียม
+            การซื้อขายหรือ slippage
+        </p>
+    </section>
+
+    <section class="card caution">
+        <h2>ข้อควรระวัง</h2>
+        <ul>
+            {% for note in result.notes %}
+            <li>{{ note }}</li>
+            {% endfor %}
+        </ul>
+        <p class="muted">
+            การวิเคราะห์นี้ใช้ข้อมูลราคาและปริมาณซื้อขายย้อนหลัง
+            ไม่ได้วิเคราะห์ข่าว ผลประกอบการ หรือเหตุการณ์ในอนาคต
+        </p>
+    </section>
+
+    <script>
+        const chartData = {{ result.chart | tojson }};
+
+        new Chart(document.getElementById("priceChart"), {
+            type: "line",
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: "ราคาปิด",
+                        data: chartData.prices,
+                        borderColor: "#4f7cff",
+                        backgroundColor: "rgba(79,124,255,0.08)",
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true,
+                        tension: 0.15
+                    },
+                    {
+                        label: "SMA20",
+                        data: chartData.sma20,
+                        borderColor: "#16a085",
+                        borderWidth: 1.5,
+                        pointRadius: 0
+                    },
+                    {
+                        label: "SMA50",
+                        data: chartData.sma50,
+                        borderColor: "#e5a13d",
+                        borderWidth: 1.5,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: "index"
+                },
+                plugins: {
+                    legend: {
+                        position: "bottom"
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 7
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            callback: value => "$" + value
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+    {% endif %}
+
+    <footer>
+        <p>Stock AI · โครงงานเพื่อการศึกษา</p>
+        <p>
+            ไม่ใช่คำแนะนำในการลงทุน
+            โปรดศึกษาข้อมูลและความเสี่ยงด้วยตนเอง
+        </p>
+    </footer>
+
+</div>
+</body>
+</html>
